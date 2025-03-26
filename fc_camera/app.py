@@ -12,7 +12,7 @@ from famicom_controller import FamicomControllerState, DebouncedFamicomControlle
 
 CAMERA_PREVIRE = True
 
-# category の定義に対応するマッピング
+# Mappings corresponding to category definitions
 CATEGORY_MAPPING = {
     0: ["A"],
     1: ["B"],
@@ -41,13 +41,13 @@ class Detection:
 # Preview
 def pre_callback(request):
 
-    # メタデータを整理する
+    # Organizing metadata
     detections = parse_detections(request.get_metadata())
 
     if detections is not None:
         parse_state(detections)
 
-    # 情報を描画する
+    # draw information
     if CAMERA_PREVIRE:
         draw_detections(request, last_detections)
 
@@ -69,7 +69,6 @@ def parse_state(detections):
                     setattr(raw_state, attr, True)
     
     debounced_state.update(raw_state)
-    print(f"{raw_state.LEFT} -> {debounced_state.get_debounced_state().LEFT}")
 
 def send_command():
     """
@@ -86,38 +85,29 @@ def parse_detections(metadata: dict):
 
     global last_detections, frame_count, start_time, fps
 
-    # 閾値（引数で渡してる）
+    # threshold
     threshold = args.threshold
 
-    # 検出結果を取得
+    # Get detection results
     np_outputs = imx500.get_outputs(metadata, add_batch=True)
 
-    # 画像サイズ
-    # input_w, input_h = imx500.get_input_size()
-
-    # 見つからなかった場合
+    # If no inference is involved
     if np_outputs is None: 
         return None
 
-    # フレームをカウント
+    # Calculate FPS
     frame_count += 1
-    
-    # 経過時間を計算
     elapsed_time = time.time() - start_time
     
-    # 1秒経過したらFPSを計算
     if elapsed_time >= 1.0:
         fps = frame_count / elapsed_time
-        #print(f"FPS: {fps:.2f}")
-        
-        # 経過時間とフレーム数をリセット
         start_time = time.time()
         frame_count = 0
 
-    # 検出情報を仕分ける
+    # Sorting detection information
     boxes, scores, classes = np_outputs[0][0], np_outputs[2][0], np_outputs[1][0]
 
-    # 規定値以上の検出情報を設定する
+    # Set detection information above the default value
     last_detections = [
         Detection(box, category, score, metadata)
         for box, score, category in zip(boxes, scores, classes)
@@ -134,10 +124,9 @@ def get_labels():
 
 def draw_detections(request, detections, stream="main"):
     
-    # ラベルの情報を取得する（ファイルより）
+    # Get book x Shize
     labels = get_labels()
     
-    # withは、このステートから抜けるとメモリ開放してくれる便利な奴
     with MappedArray(request, stream) as m:
 
         # fps
@@ -156,7 +145,7 @@ def draw_detections(request, detections, stream="main"):
 
         for detection in detections:
             
-            # ボックスのサイズを取得する
+            # Get box size
             x, y, w, h = detection.box
 
             color_map = {
@@ -188,11 +177,10 @@ def draw_detections(request, detections, stream="main"):
 def draw_controller(img, x, y):
 
     
-    # ベージュのエリア
-    # 背景の矩形
+    # background rectangle
     cv2.rectangle(img, (x + 0, y + 0), (x + 151, y + 67), (160, 50, 50), -1)
 
-    # 中央の形状
+    # central shape
     pts = np.array([[x + 7, y + 7], [x + 64, y + 7], [x + 64, y + 27], 
                     [x + 144, y + 27], [x +144, y + 60], [x + 7, y + 60]], np.int32)
     cv2.fillPoly(img, [pts], (230, 220, 190))
@@ -201,21 +189,21 @@ def draw_controller(img, x, y):
     cv2.line(img, (x+7, y + 52), (x +144, y + 52), (0, 0, 0), 1)
 
 
-    # 十字キー
+    # pad
     cv2.rectangle(img, (x + 26, y + 27), (x + 36, y +  54), (0, 0, 0), -1)
     cv2.rectangle(img, (x + 17, y + 36), (x + 44, y + 46), (0, 0, 0), -1)
 
-    # 中央ボタン
+    # center button
     cv2.rectangle(img, (x + 52, y + 40), (x + 92, y + 54), (160, 50, 50), -1)
     cv2.rectangle(img, (x + 56, y + 45), (x + 67, y + 50), (0, 0, 0), -1)
     cv2.rectangle(img, (x + 77, y + 45), (x + 88, y + 50), (0, 0, 0), -1)
 
-    # A/Bボタン
+    # a / b
     cv2.circle(img, (x + 109, y + 47), 7, (0, 0, 0), -1)
     cv2.circle(img, (x + 127, y + 47), 7, (0, 0, 0), -1)
 
-    # # push 
-    # # up
+    # push 
+    # up
     last_state = debounced_state.get_debounced_state()
     if last_state.UP:
         cv2.rectangle(img, (x + 28,  y + 29), (x + 34,  y + 37), (255, 0, 0), -1)
@@ -246,7 +234,7 @@ def draw_controller(img, x, y):
     if last_state.A:    
         cv2.circle(img, (x + 127,  y + 47), 5, (255, 0, 0), -1)
 
-# 引数の情報確認と、取得
+# Check and get argument information
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--preview", type=bool, default=True, help="show preview")
@@ -268,7 +256,6 @@ if __name__ == "__main__":
     CAMERA_PREVIRE = args.preview
 
     # UART
-    #ser = serial.Serial('/dev/ttyAMA0', baudrate=115200, timeout=1)
     fc_sender = FamicomControllerSender('/dev/ttyAMA0')
     
     button_thresholds = {'A': (2,2), 'B':(2,2), 'RIGHT':(3,2)}
@@ -282,11 +269,9 @@ if __name__ == "__main__":
     # https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf
     picam2 = Picamera2()
 
-    # モデルインストール時のバー表示
+    # Bar display when model is installed
     imx500.show_network_fw_progress_bar()
 
-    # preview画像を表示するのに適した設定を生成する
-    # サイズ変えたいなら、main={"size":(800,600)}
     config = picam2.create_preview_configuration(controls={"FrameRate": args.fps}, buffer_count=28)
     picam2.start(config, show_preview=CAMERA_PREVIRE)
 
