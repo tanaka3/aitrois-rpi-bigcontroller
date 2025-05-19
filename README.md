@@ -7,13 +7,17 @@ https://jp.daisonet.com/products/4549131890549
 
 
 * fc_camera
+
 Programs for Raspberry Pi
 
 * fc_controller
+
 Program for XIAO RP2040
 
 * model
+
 AI model for cushion controller (fisheye compatible version)
 
 * 3d
+
 STL data for camera attachment
